@@ -31,9 +31,11 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.AbsListView;
 
+import org.gateshipone.odyssey.adapter.GenericRecyclerViewAdapter;
 import org.gateshipone.odyssey.adapter.GenericSectionAdapter;
 import org.gateshipone.odyssey.listener.ToolbarAndFABCallback;
 import org.gateshipone.odyssey.models.GenericModel;
@@ -57,6 +59,8 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
      */
     protected AbsListView mListView;
 
+    protected RecyclerView mRecyclerView;
+
     /**
      * The reference to the possible empty view which should replace the list view if no data is available
      */
@@ -66,6 +70,8 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
      * The generic adapter for the view model
      */
     protected GenericSectionAdapter<T> mAdapter;
+
+    protected GenericRecyclerViewAdapter<T> mRecyclerAdapter;
 
     /**
      * Callback to check the current memory state
@@ -133,7 +139,8 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
             mDataSetObserver = new OdysseyDataSetObserver();
         }
 
-        mAdapter.registerDataSetObserver(mDataSetObserver);
+        if (mAdapter != null)
+            mAdapter.registerDataSetObserver(mDataSetObserver);
 
         getContent();
 
@@ -145,7 +152,8 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
         super.onPause();
         mTrimmingEnabled = true;
 
-        mAdapter.unregisterDataSetObserver(mDataSetObserver);
+        if (mAdapter != null)
+            mAdapter.unregisterDataSetObserver(mDataSetObserver);
     }
 
     /**
@@ -197,7 +205,11 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
         mDataReady = true;
 
         // Transfer the data to the adapter so that the views can use it
-        mAdapter.swapModel(model);
+        if (mAdapter != null)
+            mAdapter.swapModel(model);
+
+        if (mRecyclerAdapter != null)
+            mRecyclerAdapter.swapModel(model);
     }
 
     /**
@@ -217,36 +229,52 @@ abstract public class OdysseyFragment<T extends GenericModel> extends Fragment i
     @Override
     public void onLoaderReset(Loader<List<T>> loader) {
         // Clear the model data of the adapter.
-        mAdapter.swapModel(null);
+        if (mAdapter != null)
+            mAdapter.swapModel(null);
+
+        if (mRecyclerAdapter != null)
+            mRecyclerAdapter.swapModel(null);
     }
 
     /**
      * Method to apply a filter to the view model of the fragment.
      */
     public void applyFilter(String filter) {
-        mAdapter.applyFilter(filter);
+        if (mAdapter != null)
+            mAdapter.applyFilter(filter);
     }
 
     /**
      * Method to remove a previous set filter.
      */
     public void removeFilter() {
-        mAdapter.removeFilter();
+        if (mAdapter != null)
+            mAdapter.removeFilter();
     }
 
     /**
      * Method to show or hide the listview according to the state of the adapter.
      */
     private void updateView() {
-        if (mListView != null && mEmptyView != null) {
-            if (mAdapter.isEmpty()) {
-                // show empty message
-                mListView.setVisibility(View.GONE);
-                mEmptyView.setVisibility(View.VISIBLE);
-            } else {
-                // show list view
-                mListView.setVisibility(View.VISIBLE);
-                mEmptyView.setVisibility(View.GONE);
+        if (mAdapter != null) {
+            if (mListView != null && mEmptyView != null) {
+                if (mAdapter.isEmpty()) {
+                    // show empty message
+                    mListView.setVisibility(View.GONE);
+                    mEmptyView.setVisibility(View.VISIBLE);
+                } else {
+                    // show list view
+                    mListView.setVisibility(View.VISIBLE);
+                    mEmptyView.setVisibility(View.GONE);
+                }
+            }
+        } else if (mRecyclerAdapter != null) {
+            if (mRecyclerView != null) {
+                if (mRecyclerAdapter.getItemCount() > 0) {
+                    mRecyclerView.setVisibility(View.VISIBLE);
+                } else {
+                    mRecyclerView.setVisibility(View.GONE);
+                }
             }
         }
     }

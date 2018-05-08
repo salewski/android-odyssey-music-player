@@ -33,19 +33,22 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.Loader;
 import android.support.v4.graphics.drawable.DrawableCompat;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.TextView;
 
 import org.gateshipone.odyssey.R;
 import org.gateshipone.odyssey.activities.GenericActivity;
-import org.gateshipone.odyssey.adapter.TracksAdapter;
+import org.gateshipone.odyssey.adapter.TracksReyclerViewArrayAdapter;
 import org.gateshipone.odyssey.artworkdatabase.ArtworkManager;
 import org.gateshipone.odyssey.listener.OnArtistSelectedListener;
 import org.gateshipone.odyssey.listener.ToolbarAndFABCallback;
@@ -57,10 +60,11 @@ import org.gateshipone.odyssey.utils.CoverBitmapLoader;
 import org.gateshipone.odyssey.utils.MusicLibraryHelper;
 import org.gateshipone.odyssey.utils.PreferenceHelper;
 import org.gateshipone.odyssey.utils.ThemeUtils;
+import org.gateshipone.odyssey.views.ContextMenuRecyclerView;
 
 import java.util.List;
 
-public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements AdapterView.OnItemClickListener, CoverBitmapLoader.CoverBitmapReceiver, ArtworkManager.onNewAlbumImageListener {
+public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements CoverBitmapLoader.CoverBitmapReceiver, ArtworkManager.onNewAlbumImageListener {
     private static final String TAG = AlbumTracksFragment.class.getSimpleName();
     /**
      * Listener to open an artist
@@ -108,27 +112,19 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View rootView = inflater.inflate(R.layout.list_linear, container, false);
+        View rootView = inflater.inflate(R.layout.reycler_list, container, false);
+
+        mRecyclerAdapter = new TracksReyclerViewArrayAdapter(false, this::onItemClick);
 
         // get listview
-        mListView = rootView.findViewById(R.id.list_linear_listview);
+        mRecyclerView = rootView.findViewById(R.id.recycler_view);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        final DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(getContext(), DividerItemDecoration.VERTICAL);
+        dividerItemDecoration.setDrawable(getResources().getDrawable(R.drawable.recyclerview_list_divider));
+        mRecyclerView.addItemDecoration(new DividerItemDecoration(getContext(), DividerItemDecoration.VERTICAL));
+        mRecyclerView.setAdapter(mRecyclerAdapter);
 
-        mAdapter = new TracksAdapter(getActivity(), true);
-
-        // Disable sections
-        mAdapter.enableSections(false);
-
-        mListView.setAdapter(mAdapter);
-
-        mListView.setOnItemClickListener(this);
-
-        // get empty view
-        mEmptyView = rootView.findViewById(R.id.empty_view);
-
-        // set empty view message
-        ((TextView) rootView.findViewById(R.id.empty_view_message)).setText(R.string.empty_tracks_message);
-
-        registerForContextMenu(mListView);
+        registerForContextMenu(mRecyclerView);
 
         // set up toolbar
         Bundle args = getArguments();
@@ -236,8 +232,7 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
     /**
      * Play the album from the current position.
      */
-    @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+    public void onItemClick(int position) {
         switch (mClickAction) {
             case ACTION_ADD_SONG:
                 enqueueTrack(position, false);
@@ -272,7 +267,8 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
      */
     @Override
     public boolean onContextItemSelected(MenuItem item) {
-        AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+        ContextMenuRecyclerView.RecyclerViewContextMenuInfo info =
+                (ContextMenuRecyclerView.RecyclerViewContextMenuInfo) item.getMenuInfo();
 
         if (info == null) {
             return super.onContextItemSelected(item);
@@ -354,7 +350,7 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
     private void showArtist(int position) {
         // identify current artist
 
-        TrackModel clickedTrack = mAdapter.getItem(position);
+        TrackModel clickedTrack = mRecyclerAdapter.getItem(position);
         String artistTitle = clickedTrack.getTrackArtistName();
 
         long artistID = MusicLibraryHelper.getArtistIDFromName(artistTitle, getActivity());
@@ -371,7 +367,7 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
      */
     private void enqueueTrack(int position, boolean asNext) {
 
-        TrackModel track = mAdapter.getItem(position);
+        TrackModel track = mRecyclerAdapter.getItem(position);
 
         try {
             ((GenericActivity) getActivity()).getPlaybackService().enqueueTrack(track, asNext);
@@ -387,7 +383,7 @@ public class AlbumTracksFragment extends OdysseyFragment<TrackModel> implements 
      * @param position the position of the selected track in the adapter
      */
     private void playTrack(int position) {
-        TrackModel track = mAdapter.getItem(position);
+        TrackModel track = mRecyclerAdapter.getItem(position);
 
         try {
             ((GenericActivity) getActivity()).getPlaybackService().playTrack(track, false);
